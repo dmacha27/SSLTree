@@ -1,0 +1,84 @@
+@relation crx
+@attribute A1 {b, a}
+@attribute A2 real [16.0, 8025.0]
+@attribute A3 real [0.0, 26335.0]
+@attribute A4 {u, y, l}
+@attribute A5 {g, p, gg}
+@attribute A6 {w, q, m, r, cc, k, c, d, x, i, e, aa, ff, j}
+@attribute A7 {v, h, bb, ff, j, z, o, dd, n}
+@attribute A8 real [0.0, 14415.0]
+@attribute A9 {t, f}
+@attribute A10 {t, f}
+@attribute A11 integer [0, 67]
+@attribute A12 {f, t}
+@attribute A13 {g, s, p}
+@attribute A14 integer [0, 2000]
+@attribute A15 integer [0, 100000]
+@attribute Class {positive, negative}
+@inputs A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15
+@outputs Class
+@data
+b,3417.0,917.0,u,g,c,v,45.0,t,t,12,t,g,0,221,positive
+a,2858.0,354.0,u,g,i,bb,5.0,t,f,0,t,g,171,0,negative
+b,2458.0,125.0,u,g,w,v,875.0,t,f,0,t,g,260,0,negative
+b,2067.0,125.0,y,p,c,h,1375.0,t,t,3,t,g,140,210,negative
+b,2275.0,11.0,u,g,q,v,25.0,t,t,7,t,g,100,809,positive
+b,43.0,29.0,y,p,cc,h,175.0,t,t,8,f,g,100,375,positive
+a,285.0,304.0,y,p,x,h,254.0,t,t,1,f,g,70,0,positive
+b,3408.0,8.0,y,p,m,bb,4.0,t,t,1,t,g,280,2000,positive
+b,3667.0,325.0,u,g,q,h,9.0,t,f,0,t,g,102,639,positive
+b,2017.0,817.0,u,g,aa,v,196.0,t,t,14,f,g,60,158,positive
+b,2758.0,204.0,y,p,aa,v,2.0,t,t,3,t,g,370,560,positive
+b,2258.0,1004.0,u,g,x,v,4.0,t,t,9,f,g,60,396,positive
+b,2867.0,9335.0,u,g,q,h,5665.0,t,t,6,f,g,381,168,positive
+b,5392.0,9625.0,u,g,e,v,8665.0,t,t,5,f,g,0,0,positive
+b,1967.0,375.0,u,g,q,v,2.0,t,t,2,t,g,80,0,positive
+a,5842.0,21.0,u,g,i,bb,10.0,t,t,13,f,g,0,6700,positive
+a,1967.0,21.0,u,g,q,h,29.0,t,t,11,f,g,80,99,positive
+a,245.0,175.0,y,p,c,v,165.0,f,f,0,f,g,132,0,negative
+b,1708.0,85.0,y,p,c,v,4.0,f,f,0,f,g,140,722,negative
+b,5967.0,154.0,u,g,q,v,125.0,t,f,0,t,g,260,0,positive
+b,23.0,75.0,u,g,m,v,5.0,t,f,0,t,s,320,0,negative
+b,3675.0,125.0,y,p,c,v,15.0,f,f,0,t,g,232,113,positive
+a,3367.0,375.0,u,g,cc,v,375.0,f,f,0,f,g,300,44,positive
+b,3017.0,1085.0,y,p,c,v,4.0,f,f,0,f,g,170,179,negative
+b,2767.0,75.0,u,g,q,h,165.0,f,f,0,t,g,220,251,negative
+b,2067.0,835.0,y,p,c,v,2.0,f,f,0,t,s,240,0,negative
+b,16.0,3125.0,u,g,w,v,85.0,f,t,1,f,g,0,6,negative
+b,2942.0,125.0,u,g,w,v,175.0,f,f,0,f,g,200,0,negative
+b,375.0,835.0,u,g,e,v,4.0,f,f,0,f,g,120,5,negative
+b,5183.0,3.0,y,p,ff,ff,15.0,f,f,0,f,g,180,4,negative
+a,5333.0,165.0,u,g,ff,ff,0.0,f,f,0,t,s,62,27,negative
+b,2592.0,875.0,u,g,k,v,375.0,f,t,2,t,g,174,3,negative
+b,1725.0,3.0,u,g,k,v,4.0,f,f,0,t,g,160,40,negative
+b,365.0,425.0,u,g,q,v,35.0,f,f,0,f,g,454,50,negative
+b,3617.0,55.0,u,g,i,bb,5.0,f,f,0,f,g,210,687,negative
+b,2408.0,875.0,u,g,m,v,85.0,f,t,4,f,g,254,1950,negative
+a,3658.0,29.0,u,g,ff,ff,0.0,f,t,10,f,g,200,18,negative
+b,3108.0,3085.0,u,g,c,v,25.0,f,t,2,t,g,160,41,negative
+b,1742.0,65.0,u,g,i,v,125.0,f,f,0,f,g,60,100,negative
+a,1692.0,5.0,u,g,i,v,165.0,f,t,6,t,g,240,35,negative
+b,2417.0,875.0,u,g,q,v,4625.0,t,t,2,t,g,520,2000,positive
+b,2017.0,925.0,u,g,c,v,1665.0,t,t,3,t,g,40,28,positive
+b,2575.0,5.0,u,g,c,v,146.0,t,t,5,t,g,312,0,positive
+a,3067.0,12.0,u,g,c,v,2.0,t,t,1,f,g,220,19,positive
+a,6092.0,5.0,u,g,aa,v,4.0,t,t,4,f,g,0,99,positive
+a,2817.0,375.0,u,g,q,v,585.0,t,t,4,f,g,80,0,positive
+a,2458.0,67.0,u,g,aa,h,175.0,t,f,0,f,g,400,0,negative
+b,7675.0,2229.0,u,g,e,z,1275.0,t,t,1,t,g,0,109,positive
+b,2192.0,54.0,y,p,x,v,4.0,t,t,1,t,g,840,59,positive
+b,3917.0,1625.0,u,g,c,v,15.0,t,t,10,f,g,186,4700,positive
+b,41.0,4.0,u,g,e,v,4.0,f,t,1,f,s,560,0,positive
+b,6408.0,20.0,u,g,x,h,175.0,t,t,9,t,g,0,1000,positive
+b,3417.0,525.0,u,g,w,v,85.0,f,f,0,t,g,290,6,positive
+a,2958.0,175.0,y,p,k,v,125.0,f,f,0,t,g,280,0,negative
+a,525.0,7.0,u,g,aa,h,3.0,f,f,0,f,g,0,0,negative
+b,3733.0,2665.0,u,g,cc,v,165.0,f,f,0,t,g,0,501,negative
+b,2558.0,335.0,u,g,k,h,35.0,f,f,0,t,g,340,0,negative
+a,3517.0,375.0,u,g,ff,ff,0.0,f,t,6,f,g,0,200,negative
+b,3108.0,15.0,y,p,w,v,4.0,f,f,0,f,s,160,0,negative
+b,3183.0,4.0,y,p,m,v,4.0,f,f,0,f,g,0,0,negative
+a,1792.0,1021.0,u,g,ff,ff,0.0,f,f,0,f,g,0,50,negative
+a,2008.0,125.0,u,g,c,v,0.0,f,f,0,f,g,0,0,negative
+b,3642.0,75.0,y,p,d,v,585.0,f,f,0,f,g,240,3,negative
+b,4058.0,329.0,u,g,m,v,35.0,f,f,0,t,s,400,0,negative
