@@ -7,11 +7,10 @@ from sklearn.base import ClassifierMixin
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.tree import DecisionTreeClassifier
-from scipy.io.arff import loadarff
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.tree import DecisionTreeClassifier, plot_tree, export_text
+from scipy.stats import rankdata
 import matplotlib.pyplot as plt
-import arff
+from sklearn.semi_supervised import SelfTrainingClassifier
 
 
 class Node:
@@ -65,6 +64,9 @@ class Node:
         self.probabilities = probabilities
         self.left = None
         self.right = None
+
+    def is_leaf(self):
+        return self.left is None and self.right is None
 
     def __repr__(self):
         return (f"Node(data={self.data}, feature={self.feature}, val_split={self.val_split}, entropy={self.entropy}, "
@@ -191,7 +193,7 @@ class SSLTree(ClassifierMixin):
         return self.w * gini / self.total_gini + ((1 - self.w) / (partitions[0].shape[1] - 1)) * var
 
     def _split(self, data, feature, feature_val):
-        mask = data[:, feature] < feature_val
+        mask = data[:, feature] <= feature_val
         left = data[mask]
         right = data[~mask]
 
@@ -221,8 +223,8 @@ class SSLTree(ClassifierMixin):
         selected_features = self._feature_selector(data.shape[1] - 1)
 
         for feature in selected_features:
-            possible_partitions = np.percentile(data[:, feature], q=np.arange(25, 100, 25))
-
+            # possible_partitions = np.percentile(data[:, feature], q=np.arange(25, 100, 25))
+            possible_partitions = np.unique(data[:, feature])
             if self.splitter != 'random':
                 partition_values = possible_partitions
             else:
@@ -265,12 +267,12 @@ class SSLTree(ClassifierMixin):
         left_data_labelled = left_data[left_data[:, -1] != -1]
         right_data_labelled = right_data[right_data[:, -1] != -1]
 
-        if len(left_data_labelled) == 0 or len(right_data_labelled) == 0:
+        if len(left_data_labelled) == 0 and len(right_data_labelled) == 0:
             return None
 
         root = Node(data, feature, feature_val, entropy, self._node_probs(data))
 
-        if self.min_samples_leaf > len(left_data_labelled) or self.min_samples_leaf > len(right_data_labelled):
+        if self.min_samples_leaf >= len(left_data_labelled) and self.min_samples_leaf >= len(right_data_labelled):
             return root
 
         if 1.0 in root.probabilities:
@@ -328,17 +330,19 @@ class SSLTree(ClassifierMixin):
         cadena += "|--- "
 
         if not node.left or not node.right:
-            return cadena + "class: " + str(np.argmax(node.probabilities)) + str(
-                len(node.data[node.data[:, -1] != -1])) + "\n"
+            clases, cantidad = np.unique(node.data[:, -1], return_counts=True)
+            return cadena + "class: " + str(self.labels[np.argmax(node.probabilities)]) + " Cantidad de clases: " + str(
+                clases) + " " + str(cantidad) + "\n"
         else:
-            cadena += (str(node.feature) if not self.feature_names else self.feature_names[
+            cadena += ("feature_" + str(node.feature) if not self.feature_names else self.feature_names[
                 node.feature]) + " <= " + str(
                 node.val_split) + "\n"
             cadena += self.text_tree(node.left, depth + 1)
 
             cadena += ("|" + " " * 3) * depth
             cadena += "|--- "
-            cadena += (str(node.feature) if not self.feature_names else self.feature_names[node.feature]) + " > " + str(
+            cadena += ("feature_" + str(node.feature) if not self.feature_names else self.feature_names[
+                node.feature]) + " > " + str(
                 node.val_split) + "\n"
             cadena += self.text_tree(node.right, depth + 1)
 
@@ -358,19 +362,23 @@ if __name__ == '__main__':
         return -1
 
 
-    def cross_val(name):
+    def cross_val(name, p_unlabeled="20"):
 
         accuracy_ssl = []
         accuracy_dt = []
+        accuracy_st = []
 
+        print("PERCENTAGE:", p_unlabeled, "- DATASET:", name)
         for k in range(1, 11):
-            train_data = pd.read_csv(f'datasets/20/{name}/{name}-10-{k}tra.dat', header=None,
-                                     skiprows=encontrar_fila_con_palabra(f'datasets/20/{name}/{name}-10-{k}tra.dat',
-                                                                         '@data'))
+            train_data = pd.read_csv(f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tra.dat', header=None,
+                                     skiprows=encontrar_fila_con_palabra(
+                                         f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tra.dat',
+                                         '@data'))
 
-            test_data = pd.read_csv(f'datasets/20/{name}/{name}-10-{k}tst.dat', header=None,
-                                    skiprows=encontrar_fila_con_palabra(f'datasets/20/{name}/{name}-10-{k}tst.dat',
-                                                                        '@data'))
+            test_data = pd.read_csv(f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tst.dat', header=None,
+                                    skiprows=encontrar_fila_con_palabra(
+                                        f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tst.dat',
+                                        '@data'))
 
             if pd.api.types.is_numeric_dtype(test_data.iloc[:, -1]):
                 train_data.loc[train_data.iloc[:, -1] == ' unlabeled', len(train_data.columns) - 1] = -1
@@ -389,30 +397,87 @@ if __name__ == '__main__':
 
             train_data_label = train_data[train_data.iloc[:, -1] != -1]
 
-            my_tree = SSLTree(w=0.75)
+            my_tree = SSLTree(w=1)
             my_tree.fit(train_data.iloc[:, :-1].values, train_data.iloc[:, -1].values)
+            # print(my_tree.export_tree())
+            # print(accuracy_score(test_data.iloc[:, -1].values, my_tree.predict(test_data.iloc[:, :-1].values)))
 
             dt = DecisionTreeClassifier()
             dt.fit(train_data_label.iloc[:, :-1].values, train_data_label.iloc[:, -1].values)
+            # print(export_text(dt))
+            # print(accuracy_score(test_data.iloc[:, -1].values, dt.predict(test_data.iloc[:, :-1].values)))
+
+            self_training_model = SelfTrainingClassifier(DecisionTreeClassifier())
+            self_training_model.fit(train_data.iloc[:, :-1].values, train_data.iloc[:, -1].values)
 
             accuracy_ssl.append(
                 accuracy_score(test_data.iloc[:, -1].values, my_tree.predict(test_data.iloc[:, :-1].values)))
             accuracy_dt.append(accuracy_score(test_data.iloc[:, -1].values, dt.predict(test_data.iloc[:, :-1].values)))
+            accuracy_st.append(accuracy_score(test_data.iloc[:, -1].values,
+                                              self_training_model.predict(test_data.iloc[:, :-1].values)))
+            print("\tFOLD", k, "- Done")
 
-        return np.median(accuracy_ssl), np.median(accuracy_dt)
+        return np.median(accuracy_ssl), np.median(accuracy_dt), np.median(accuracy_st)
 
 
-    medians_ssl = []
-    medians_dt = []
+    names = ["yeast", "iris", "appendicitis", "wine", "bupa", "dermatology", "glass", "sonar",
+             "spectfheart", "vehicle", "vowel", "cleveland"]
 
-    names = ["yeast", "iris", "appendicitis", "wine", "bupa", "dermatology", "glass", "sonar", "spambase", "vehicle"]
-    for name in names:
-        m_ssl, m_dt = cross_val(name)
-        medians_ssl.append(m_ssl)
-        medians_dt.append(m_dt)
+    #Problemas con tae, thyroid, contraceptive
 
-    print(medians_ssl)
-    print(medians_dt)
+    all_medians = {}
+
+    all_mean_rankings = np.empty((3, 3))
+
+    for i, p in enumerate(["20", "30", "40"]):
+        medians_ssl = []
+        medians_dt = []
+        medians_st = []
+        for name in names:
+            m_ssl, m_dt, m_st = cross_val(name, p)
+            # break
+            medians_ssl.append(m_ssl)
+            medians_dt.append(m_dt)
+            medians_st.append(m_st)
+        # break
+        print(medians_ssl)
+        print(medians_dt)
+        print(medians_st)
+
+        all_medians[p] = np.stack((medians_ssl, medians_dt, medians_st))
+
+        rankings = rankdata(-all_medians[p], method="average", axis=0)
+        print(rankings)
+
+        all_mean_rankings[:, i] = np.mean(rankings, axis=1)
+
+    final_rankings = rankdata(all_mean_rankings, method="average", axis=0)
+    print(all_mean_rankings)
+
+    plt.figure(figsize=(10, 6))
+
+    for i, percentage in enumerate(["20%", "30%", "40%"]):
+        top = all_mean_rankings[:, i].copy()
+        uniques, _ = np.unique(top, return_counts=True)
+
+        displacement = 0.05 * np.linspace(-1, 1, len(uniques), endpoint=False)
+        dup = 0
+        for j, value in enumerate(top):
+            if np.count_nonzero(top == value) > 1:
+                all_mean_rankings[j][i] += displacement[dup] if dup < len(displacement) else 0
+                dup += 1
+
+    classifiers = ["SSLTree", "DecisionTree", "SelfTraining"]
+    for j, classifier in enumerate(classifiers):
+        plt.scatter(["20%", "30%", "40%"], all_mean_rankings[j], label=classifier)
+
+    plt.ylim(0, 3.5)
+    plt.xlabel("Percentage")
+    plt.ylabel("Ranking")
+    plt.title("Comparativa SSLTree, DT y ST")
+
+    plt.legend()
+    plt.show()
 
     plt.figure(figsize=(8, 6))
     # plt.scatter(medians_ssl, medians_dt, color='blue')
