@@ -9,6 +9,9 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.tree import DecisionTreeClassifier, plot_tree, export_text
 from scipy.stats import rankdata
+import matplotlib
+
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from sklearn.semi_supervised import SelfTrainingClassifier
 
@@ -311,7 +314,7 @@ class SSLTree(ClassifierMixin):
         predictions = [0] * self.labels
         while node:  # Until leaf is reached
             predictions = node.probabilities
-            if x[node.feature] < node.val_split:
+            if x[node.feature] <= node.val_split:
                 node = node.left
             else:
                 node = node.right
@@ -370,15 +373,19 @@ if __name__ == '__main__':
 
         print("PERCENTAGE:", p_unlabeled, "- DATASET:", name)
         for k in range(1, 11):
-            train_data = pd.read_csv(f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tra.dat', header=None,
-                                     skiprows=encontrar_fila_con_palabra(
-                                         f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tra.dat',
-                                         '@data'))
+            train_data = pd.read_csv(
+                f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tra.dat',
+                header=None,
+                skiprows=encontrar_fila_con_palabra(
+                    f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tra.dat',
+                    '@data'))
 
-            test_data = pd.read_csv(f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tst.dat', header=None,
-                                    skiprows=encontrar_fila_con_palabra(
-                                        f'datasets/{p_unlabeled}/{name}/{name}-10-{k}tst.dat',
-                                        '@data'))
+            test_data = pd.read_csv(
+                f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tst.dat',
+                header=None,
+                skiprows=encontrar_fila_con_palabra(
+                    f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tst.dat',
+                    '@data'))
 
             if pd.api.types.is_numeric_dtype(test_data.iloc[:, -1]):
                 train_data.loc[train_data.iloc[:, -1] == ' unlabeled', len(train_data.columns) - 1] = -1
@@ -420,16 +427,16 @@ if __name__ == '__main__':
         return np.median(accuracy_ssl), np.median(accuracy_dt), np.median(accuracy_st)
 
 
-    names = ["yeast", "iris", "appendicitis", "wine", "bupa", "dermatology", "glass", "sonar",
-             "spectfheart", "vehicle", "vowel", "cleveland"]
+    names = ["yeast", "iris", "appendicitis", "wine", "bupa", "dermatology", "glass", "sonar", "spectfheart", "vehicle",
+             "vowel", "cleveland"]
 
-    #Problemas con tae, thyroid, contraceptive
+    # Problemas con tae, thyroid, contraceptive
 
     all_medians = {}
 
-    all_mean_rankings = np.empty((3, 3))
+    all_mean_rankings = np.empty((3, 4))
 
-    for i, p in enumerate(["20", "30", "40"]):
+    for i, p in enumerate(["10", "20", "30", "40"]):
         medians_ssl = []
         medians_dt = []
         medians_st = []
@@ -456,7 +463,7 @@ if __name__ == '__main__':
 
     plt.figure(figsize=(10, 6))
 
-    for i, percentage in enumerate(["20%", "30%", "40%"]):
+    for i, percentage in enumerate(["10%", "20%", "30%", "40%"]):
         top = all_mean_rankings[:, i].copy()
         uniques, _ = np.unique(top, return_counts=True)
 
@@ -469,7 +476,7 @@ if __name__ == '__main__':
 
     classifiers = ["SSLTree", "DecisionTree", "SelfTraining"]
     for j, classifier in enumerate(classifiers):
-        plt.scatter(["20%", "30%", "40%"], all_mean_rankings[j], label=classifier)
+        plt.scatter(["10%", "20%", "30%", "40%"], all_mean_rankings[j], label=classifier)
 
     plt.ylim(0, 3.5)
     plt.xlabel("Percentage")
