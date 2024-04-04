@@ -255,8 +255,8 @@ class SSLTree(ClassifierMixin):
 
         for i, label in enumerate(self.labels):
             label_appearances = np.where(labels_in_data == label)[0]
-            if np.any(label_appearances):
-                probs[i] = len(label_appearances) / total_labels
+            if label_appearances.shape[0] > 0:
+                probs[i] = label_appearances.shape[0] / total_labels
 
         return probs
 
