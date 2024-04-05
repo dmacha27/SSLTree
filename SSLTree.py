@@ -130,6 +130,9 @@ class SSLTree(ClassifierMixin):
     max_features : {'auto', 'sqrt', 'log2', int or float}
         The number of features to consider when looking for the best split.
 
+    random_state : int, RandomState instance or None, default=None
+        Controls the randomness of the estimator.
+
     Examples
     --------
     >>> from sklearn.datasets import load_iris
@@ -154,13 +157,15 @@ class SSLTree(ClassifierMixin):
     """
 
     def __init__(self, w=0.75, splitter='best', max_depth=None, min_samples_split=2, min_samples_leaf=1,
-                 max_features='auto'):
+                 max_features='auto', random_state=None):
         self.w = w
         self.splitter = splitter
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
         self.max_features = max_features
+        self.random_state = random_state if isinstance(random_state, np.random.RandomState) else np.random.RandomState(
+            random_state)
         self.tree = None
         self.total_var = None
         self.total_gini = None
@@ -216,7 +221,7 @@ class SSLTree(ClassifierMixin):
         else:
             raise ValueError("Invalid value for max_features")
 
-        return np.random.choice(num_features, max_features, replace=False)
+        return self.random_state.choice(num_features, max_features, replace=False)
 
     def _best_split(self, data):
         best_entropy = float('inf')
@@ -233,7 +238,7 @@ class SSLTree(ClassifierMixin):
                 partition_values = possible_partitions
             else:
                 # https://stackoverflow.com/questions/46756606/what-does-splitter-attribute-in-sklearns-decisiontreeclassifier-do
-                partition_values = [np.random.choice(possible_partitions)]
+                partition_values = [self.random_state.choice(possible_partitions)]
 
             for feature_val in partition_values:
                 left, right = self._split(data, feature, feature_val)
