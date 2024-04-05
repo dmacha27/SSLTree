@@ -220,6 +220,7 @@ class SSLTree(ClassifierMixin):
 
     def _best_split(self, data):
         best_entropy = float('inf')
+        best_entropy = None
         best_feature = -1
         best_feature_val = -1
 
@@ -237,7 +238,7 @@ class SSLTree(ClassifierMixin):
             for feature_val in partition_values:
                 left, right = self._split(data, feature, feature_val)
                 entropy = self._entropy_ssl([left, right])
-                if entropy < best_entropy:
+                if best_entropy is None or entropy < best_entropy:
                     best_entropy = entropy
                     best_feature = feature
                     best_feature_val = feature_val
