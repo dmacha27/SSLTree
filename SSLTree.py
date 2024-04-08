@@ -1,19 +1,7 @@
 import math
 
 import numpy as np
-import pandas as pd
-from sklearn import datasets, model_selection
 from sklearn.base import ClassifierMixin
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import KFold
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.tree import DecisionTreeClassifier, plot_tree, export_text
-from scipy.stats import rankdata
-import matplotlib
-
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from sklearn.semi_supervised import SelfTrainingClassifier
 
 
 class Node:
@@ -67,9 +55,6 @@ class Node:
         self.probabilities = probabilities
         self.left = None
         self.right = None
-
-    def is_leaf(self):
-        return self.left is None and self.right is None
 
     def __repr__(self):
         return (f"Node(data={self.data}, feature={self.feature}, val_split={self.val_split}, entropy={self.entropy}, "
@@ -150,10 +135,6 @@ class SSLTree(ClassifierMixin):
 
     >>> # Predict
     >>> y_pred = clf.predict(X_test)
-
-    >>> # Evaluate accuracy
-    >>> accuracy = accuracy_score(y_test, y_pred)
-    >>> print("Accuracy:", accuracy)
     """
 
     def __init__(self, w=0.75, splitter='best', max_depth=None, min_samples_split=2, min_samples_leaf=1,
@@ -173,13 +154,55 @@ class SSLTree(ClassifierMixin):
         self.feature_names = None
 
     def _gini(self, labels):
+        """
+        Calculate the Gini impurity for a set of labels.
+
+        Parameters
+        ----------
+        labels : array-like
+            The array containing the labels for which Gini impurity needs to be calculated.
+
+        Returns
+        -------
+        float
+            The Gini impurity score for the given set of labels.
+        """
+
         probs = np.unique(labels, return_counts=True)[1] / len(labels)
         return sum([-p * np.log2(p) for p in probs if p > 0])
 
     def _var(self, X_i):
+        """
+        Calculate the variance for a feature.
+
+        Parameters
+        ----------
+        X_i : array-like
+            The array containing the values of a feature.
+
+        Returns
+        -------
+        float
+            The variance of the feature.
+        """
+
         return (np.sum(np.square(X_i)) - np.square(np.sum(X_i)) / len(X_i)) if len(X_i) > 1 else 0
 
     def _entropy_ssl(self, partitions):
+        """
+        Calculate entropy for the given partitions after splitting the data.
+
+        Parameters
+        ----------
+        partitions : array-like
+            The array containing the two partitions of the data.
+
+        Returns
+        -------
+        float
+            The entropy of the split.
+        """
+
         subsets_labelled = [subset[subset[:, -1] != -1] for subset in partitions]
 
         total_count_labelled = np.sum([len(subset) for subset in subsets_labelled])
@@ -201,6 +224,26 @@ class SSLTree(ClassifierMixin):
         return self.w * gini / self.total_gini + ((1 - self.w) / (partitions[0].shape[1] - 1)) * var
 
     def _split(self, data, feature, feature_val):
+        """
+        Split the dataset into two subsets based on a feature and its value.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The dataset to be split.
+        feature : int
+            The index of the feature to split on.
+        feature_val : float
+            The value of the feature to split on.
+
+        Returns
+        -------
+        tuple
+            A tuple containing two subsets of the original dataset:
+            - The subset where the feature values are less than or equal to the feature_val.
+            - The subset where the feature values are greater than the feature_val.
+        """
+
         mask = data[:, feature] <= feature_val
         left = data[mask]
         right = data[~mask]
@@ -208,6 +251,20 @@ class SSLTree(ClassifierMixin):
         return left, right
 
     def _feature_selector(self, num_features):
+        """
+        Select a subset of features for splitting.
+
+        Parameters
+        ----------
+        num_features : int
+            The total number of features in the dataset.
+
+        Returns
+        -------
+        numpy.ndarray
+            An array containing the indices of the selected features.
+        """
+
         if self.max_features == "auto":
             max_features = num_features
         elif self.max_features == "sqrt":
@@ -224,7 +281,25 @@ class SSLTree(ClassifierMixin):
         return self.random_state.choice(num_features, max_features, replace=False)
 
     def _best_split(self, data):
-        best_entropy = float('inf')
+        """
+        Find the best split for the dataset.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The dataset to find the best split for.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the following elements:
+            - The left subset of the best split.
+            - The right subset of the best split.
+            - The index of the feature used for the best split.
+            - The value of the feature used for the best split.
+            - The entropy of the best split.
+        """
+
         best_entropy = None
         best_feature = -1
         best_feature_val = -1
@@ -252,6 +327,19 @@ class SSLTree(ClassifierMixin):
         return best_left, best_right, best_feature, best_feature_val, best_entropy
 
     def _node_probs(self, data):
+        """
+        Calculate the probabilities of each label based on their appearance in the provided data.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The dataset to calculate the probabilities of.
+
+        Returns
+        -------
+        list
+            A list containing the probabilities of each label in the dataset.
+        """
 
         labels_in_data = data[:, -1]
 
@@ -267,6 +355,21 @@ class SSLTree(ClassifierMixin):
         return probs
 
     def _create_tree(self, data, depth):
+        """
+        Recursively create a decision tree.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The dataset to build the tree from.
+        depth : int
+            The current depth of the tree.
+
+        Returns
+        -------
+        Node
+            The root node of the decision tree.
+        """
 
         if self.max_depth is not None and depth > self.max_depth:
             return None
@@ -298,6 +401,24 @@ class SSLTree(ClassifierMixin):
         return root
 
     def fit(self, X, y, feature_names=None):
+        """
+        Fit the decision tree classifier to the training data.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix, shape (n_samples, n_features)
+            The training input samples.
+        y : array-like, shape (n_samples,)
+            The target values.
+        feature_names : list, optional
+            A list containing the names of the features.
+
+        Returns
+        -------
+        self : object
+            Returns the instance itself.
+        """
+
         self.feature_names = feature_names
         all_labels = np.unique(y)
 
@@ -313,7 +434,21 @@ class SSLTree(ClassifierMixin):
 
         return self
 
-    def single_predict(self, x):
+    def predict_proba(self, x):
+        """
+        Predict class probabilities for an input sample.
+
+        Parameters
+        ----------
+        x : array-like
+            The input sample.
+
+        Returns
+        -------
+        list
+            The class probabilities of the input sample.
+        """
+
         # Starts on root
         node = self.tree
 
@@ -327,182 +462,87 @@ class SSLTree(ClassifierMixin):
 
         return predictions
 
-    def predict_proba(self, X):
-        return [self.single_predict(x) for x in X]
+    def single_predict(self, x):
+        """
+        Predict the class label for an input sample.
+
+        Parameters
+        ----------
+        x : array-like
+            The input sample.
+
+        Returns
+        -------
+        int
+            The predicted class label for the input sample.
+        """
+
+        return self.labels[np.argmax(self.predict_proba(x))]
 
     def predict(self, X):
-        return self.labels[np.argmax(self.predict_proba(X), axis=1)]
+        """
+        Predict class labels for the input samples.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix, shape (n_samples, n_features)
+            The input samples.
+
+        Returns
+        -------
+        list
+            The predicted class labels for the input samples.
+        """
+
+        return [self.single_predict(x) for x in X]
 
     def text_tree(self, node, depth):
-        cadena = ""
-        cadena += ("|" + " " * 3) * depth
-        cadena += "|--- "
+        """
+        Generate a textual representation of the decision tree starting from the given node.
+
+        Parameters
+        ----------
+        node : Node
+            The current node of the decision tree.
+        depth : int
+            The current depth of the tree.
+
+        Returns
+        -------
+        str
+            A textual representation of the decision tree.
+        """
+
+        tree = ""
+        tree += ("|" + " " * 3) * depth
+        tree += "|--- "
 
         if not node.left or not node.right:
-            clases, cantidad = np.unique(node.data[:, -1], return_counts=True)
-            return cadena + "class: " + str(self.labels[np.argmax(node.probabilities)]) + " Cantidad de clases: " + str(
-                clases) + " " + str(cantidad) + "\n"
+            classes, quantity = np.unique(node.data[:, -1], return_counts=True)
+            return tree + "class: " + str(self.labels[np.argmax(node.probabilities)]) + " Classes distribution: " + str(
+                classes) + " " + str(quantity) + "\n"
         else:
-            cadena += ("feature_" + str(node.feature) if not self.feature_names else self.feature_names[
+            tree += ("feature_" + str(node.feature) if not self.feature_names else self.feature_names[
                 node.feature]) + " <= " + str(
                 node.val_split) + "\n"
-            cadena += self.text_tree(node.left, depth + 1)
+            tree += self.text_tree(node.left, depth + 1)
 
-            cadena += ("|" + " " * 3) * depth
-            cadena += "|--- "
-            cadena += ("feature_" + str(node.feature) if not self.feature_names else self.feature_names[
+            tree += ("|" + " " * 3) * depth
+            tree += "|--- "
+            tree += ("feature_" + str(node.feature) if not self.feature_names else self.feature_names[
                 node.feature]) + " > " + str(
                 node.val_split) + "\n"
-            cadena += self.text_tree(node.right, depth + 1)
+            tree += self.text_tree(node.right, depth + 1)
 
-        return cadena
+        return tree
 
     def export_tree(self):
+        """
+        Export the textual representation of the decision tree.
+
+        Returns
+        -------
+        str
+            A textual representation of the decision tree.
+        """
         return self.text_tree(self.tree, 0)
-
-
-if __name__ == '__main__':
-
-    def encontrar_fila_con_palabra(ruta_archivo, palabra):
-        with open(ruta_archivo, 'r') as archivo:
-            for num_linea, linea in enumerate(archivo, 1):  # Empezamos desde la línea 1
-                if palabra in linea:
-                    return num_linea
-        return -1
-
-
-    def cross_val(name, p_unlabeled="20"):
-
-        accuracy_ssl = []
-        accuracy_dt = []
-        accuracy_st = []
-
-        print("PERCENTAGE:", p_unlabeled, "- DATASET:", name)
-        for k in range(1, 11):
-            train_data = pd.read_csv(
-                f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tra.dat',
-                header=None,
-                skiprows=encontrar_fila_con_palabra(
-                    f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tra.dat',
-                    '@data'))
-
-            test_data = pd.read_csv(
-                f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tst.dat',
-                header=None,
-                skiprows=encontrar_fila_con_palabra(
-                    f'datasets/{p_unlabeled}/{name}-ssl{p_unlabeled}-10-fold/{name}-ssl{p_unlabeled}/{name}-ssl{p_unlabeled}-10-{k}tst.dat',
-                    '@data'))
-
-            if pd.api.types.is_numeric_dtype(test_data.iloc[:, -1]):
-                train_data.loc[train_data.iloc[:, -1] == ' unlabeled', len(train_data.columns) - 1] = -1
-                train_data.iloc[:, -1] = pd.to_numeric(train_data.iloc[:, -1])
-            else:
-                label_encoder = LabelEncoder()
-                # Codificar las etiquetas de clase
-                train_data.iloc[:, -1] = label_encoder.fit_transform(train_data.iloc[:, -1])
-                train_data.loc[train_data.iloc[:, -1] == label_encoder.transform([' unlabeled'])[0], len(
-                    train_data.columns) - 1] = -1
-
-                test_data.iloc[:, -1] = label_encoder.transform(test_data.iloc[:, -1])
-
-            train_data[train_data.columns[-1]] = train_data[train_data.columns[-1]].astype(int)
-            test_data[test_data.columns[-1]] = test_data[test_data.columns[-1]].astype(int)
-
-            train_data_label = train_data[train_data.iloc[:, -1] != -1]
-
-            my_tree = SSLTree(w=1)
-            my_tree.fit(train_data.iloc[:, :-1].values, train_data.iloc[:, -1].values)
-            # print(my_tree.export_tree())
-            # print(accuracy_score(test_data.iloc[:, -1].values, my_tree.predict(test_data.iloc[:, :-1].values)))
-
-            dt = DecisionTreeClassifier()
-            dt.fit(train_data_label.iloc[:, :-1].values, train_data_label.iloc[:, -1].values)
-            # print(export_text(dt))
-            # print(accuracy_score(test_data.iloc[:, -1].values, dt.predict(test_data.iloc[:, :-1].values)))
-
-            self_training_model = SelfTrainingClassifier(DecisionTreeClassifier())
-            self_training_model.fit(train_data.iloc[:, :-1].values, train_data.iloc[:, -1].values)
-
-            accuracy_ssl.append(
-                accuracy_score(test_data.iloc[:, -1].values, my_tree.predict(test_data.iloc[:, :-1].values)))
-            accuracy_dt.append(accuracy_score(test_data.iloc[:, -1].values, dt.predict(test_data.iloc[:, :-1].values)))
-            accuracy_st.append(accuracy_score(test_data.iloc[:, -1].values,
-                                              self_training_model.predict(test_data.iloc[:, :-1].values)))
-            print("\tFOLD", k, "- Done")
-
-        return np.median(accuracy_ssl), np.median(accuracy_dt), np.median(accuracy_st)
-
-
-    names = ["yeast", "iris", "appendicitis", "wine", "bupa", "dermatology", "glass", "sonar", "spectfheart", "vehicle",
-             "vowel", "cleveland"]
-
-    # Problemas con tae, thyroid, contraceptive
-
-    all_medians = {}
-
-    all_mean_rankings = np.empty((3, 4))
-
-    for i, p in enumerate(["10", "20", "30", "40"]):
-        medians_ssl = []
-        medians_dt = []
-        medians_st = []
-        for name in names:
-            m_ssl, m_dt, m_st = cross_val(name, p)
-            # break
-            medians_ssl.append(m_ssl)
-            medians_dt.append(m_dt)
-            medians_st.append(m_st)
-        # break
-        print(medians_ssl)
-        print(medians_dt)
-        print(medians_st)
-
-        all_medians[p] = np.stack((medians_ssl, medians_dt, medians_st))
-
-        rankings = rankdata(-all_medians[p], method="average", axis=0)
-        print(rankings)
-
-        all_mean_rankings[:, i] = np.mean(rankings, axis=1)
-
-    final_rankings = rankdata(all_mean_rankings, method="average", axis=0)
-    print(all_mean_rankings)
-
-    plt.figure(figsize=(10, 6))
-
-    for i, percentage in enumerate(["10%", "20%", "30%", "40%"]):
-        top = all_mean_rankings[:, i].copy()
-        uniques, _ = np.unique(top, return_counts=True)
-
-        displacement = 0.05 * np.linspace(-1, 1, len(uniques), endpoint=False)
-        dup = 0
-        for j, value in enumerate(top):
-            if np.count_nonzero(top == value) > 1:
-                all_mean_rankings[j][i] += displacement[dup] if dup < len(displacement) else 0
-                dup += 1
-
-    classifiers = ["SSLTree", "DecisionTree", "SelfTraining"]
-    for j, classifier in enumerate(classifiers):
-        plt.scatter(["10%", "20%", "30%", "40%"], all_mean_rankings[j], label=classifier)
-
-    plt.ylim(0, 3.5)
-    plt.xlabel("Percentage")
-    plt.ylabel("Ranking")
-    plt.title("Comparativa SSLTree, DT y ST")
-
-    plt.legend()
-    plt.show()
-
-    plt.figure(figsize=(8, 6))
-    # plt.scatter(medians_ssl, medians_dt, color='blue')
-    plt.plot([min(medians_ssl + medians_dt) * 0.7, 1],
-             [min(medians_ssl + medians_dt) * 0.7, 1], color='red', linestyle='--')
-
-    colores = plt.cm.viridis(np.linspace(0, 1, len(medians_ssl)))
-
-    # Agregar los puntos al gráfico de dispersión uno por uno
-    for i in range(len(medians_ssl)):
-        plt.scatter(medians_ssl[i], medians_dt[i], color=colores[i], label=names[i])
-
-    plt.legend()
-    plt.title("Median accuracy")
-    plt.show()
