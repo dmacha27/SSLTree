@@ -219,7 +219,7 @@ class SSLTree(ClassifierMixin):
             for subset in partitions:
                 num += self._var(subset[:, i]) * (len(subset) / total_count)
 
-            var += num / self.total_var[i]
+            var += (num / self.total_var[i]) if self.total_var[i] else 0
 
         return self.w * gini / self.total_gini + ((1 - self.w) / (partitions[0].shape[1] - 1)) * var
 
@@ -300,7 +300,7 @@ class SSLTree(ClassifierMixin):
             - The entropy of the best split.
         """
 
-        best_entropy = None
+        best_entropy = float("inf")
         best_feature = -1
         best_feature_val = -1
 
@@ -318,7 +318,7 @@ class SSLTree(ClassifierMixin):
             for feature_val in partition_values:
                 left, right = self._split(data, feature, feature_val)
                 entropy = self._entropy_ssl([left, right])
-                if best_entropy is None or entropy < best_entropy:
+                if entropy < best_entropy:
                     best_entropy = entropy
                     best_feature = feature
                     best_feature_val = feature_val
@@ -384,14 +384,15 @@ class SSLTree(ClassifierMixin):
 
         root = Node(data, feature, feature_val, entropy, self._node_probs(data))
 
-        if self.min_samples_leaf >= len(left_data_labelled) and self.min_samples_leaf >= len(right_data_labelled):
+        if self.min_samples_leaf >= len(np.unique(left_data_labelled[:, :-1], axis=0)) and self.min_samples_leaf >= len(
+                np.unique(right_data_labelled[:, :-1], axis=0)):
             return root
 
         if 1.0 in root.probabilities:
             return root
 
         # Minimum number of samples required to split an internal node.
-        if (len(left_data_labelled) + len(right_data_labelled)) >= self.min_samples_split:
+        if len(left_data_labelled) >= self.min_samples_split and len(right_data_labelled) >= self.min_samples_split:
             root.left = self._create_tree(left_data, depth + 1)
             root.right = self._create_tree(right_data, depth + 1)
         else:
