@@ -495,6 +495,12 @@ class SSLTree(ClassifierMixin):
             The predicted class labels for the input samples.
         """
 
+        if not isinstance(X, np.ndarray):
+            X = np.array(X)
+
+        if len(X.shape) == 1:
+            raise ValueError("Expected 2D array, got 1D array instead:", X, "Use array.reshape(1, -1).")
+
         return [self.single_predict(x) for x in X]
 
     def text_tree(self, node, depth):
