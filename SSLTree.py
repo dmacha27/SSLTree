@@ -435,7 +435,7 @@ class SSLTree(ClassifierMixin):
 
         return self
 
-    def predict_proba(self, x):
+    def single_predict_proba(self, x):
         """
         Predict class probabilities for an input sample.
 
@@ -463,6 +463,29 @@ class SSLTree(ClassifierMixin):
 
         return predictions
 
+    def predict_proba(self, X):
+        """
+        Predict class probabilities for multiple input samples.
+
+        Parameters
+        ----------
+        X : array-like
+            The input samples.
+
+        Returns
+        -------
+        ndarray
+            The class probabilities of the input samples.
+        """
+
+        if not isinstance(X, np.ndarray):
+            X = np.array(X)
+
+        if len(X.shape) == 1:
+            return self.single_predict_proba(X)
+
+        return np.array([self.single_predict_proba(x) for x in X])
+
     def single_predict(self, x):
         """
         Predict the class label for an input sample.
@@ -478,7 +501,7 @@ class SSLTree(ClassifierMixin):
             The predicted class label for the input sample.
         """
 
-        return self.labels[np.argmax(self.predict_proba(x))]
+        return self.labels[np.argmax(self.single_predict_proba(x))]
 
     def predict(self, X):
         """
