@@ -1,7 +1,10 @@
 import math
 
 import numpy as np
-from sklearn.base import ClassifierMixin
+from sklearn.base import ClassifierMixin, BaseEstimator
+from sklearn.exceptions import NotFittedError
+from sklearn.utils import assert_all_finite
+from sklearn.utils.validation import check_random_state
 
 
 class Node:
@@ -48,6 +51,7 @@ class Node:
         probabilities : array-like
             The class probabilities associated with this node.
         """
+
         self.data = data
         self.feature = feature
         self.val_split = val_split
@@ -61,7 +65,7 @@ class Node:
                 f"probabilities={self.probabilities})")
 
 
-class SSLTree(ClassifierMixin):
+class SSLTree(ClassifierMixin, BaseEstimator):
     """A decision tree classifier.
 
     Constructs the tree by computing the dataset's impurity using the method proposed by Levatic et al. (2017).
@@ -137,21 +141,44 @@ class SSLTree(ClassifierMixin):
     >>> y_pred = clf.predict(X_test)
     """
 
-    def __init__(self, w=0.75, splitter='best', max_depth=None, min_samples_split=2, min_samples_leaf=1,
-                 max_features='auto', random_state=None):
+    def __init__(self,
+                 w=0.75,
+                 criterion='custom',
+                 splitter='best',
+                 max_depth=None,
+                 min_samples_split=2,
+                 min_samples_leaf=1,
+                 min_weight_fraction_leaf=0.0,
+                 max_features='auto',
+                 max_leaf_nodes=None,
+                 random_state=None,
+                 min_impurity_decrease=0.0,
+                 class_weight=None,
+                 ccp_alpha=0.0,
+                 monotonic_cst=None):
+
         self.w = w
+        self.criterion = criterion  # TODO
         self.splitter = splitter
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
+        self.min_weight_fraction_leaf = min_weight_fraction_leaf  # TODO
         self.max_features = max_features
-        self.random_state = random_state if isinstance(random_state, np.random.RandomState) else np.random.RandomState(
-            random_state)
+        self.max_leaf_nodes = max_leaf_nodes  # TODO
+        self.random_state = random_state
+        self.min_impurity_decrease = min_impurity_decrease  # TODO
+        self.class_weight = class_weight  # TODO
+        self.ccp_alpha = ccp_alpha  # TODO
+        self.monotonic_cst = monotonic_cst  # TODO
+
         self.tree = None
         self.total_var = None
         self.total_gini = None
         self.labels = None
         self.feature_names = None
+        self.depth = 0
+        self.n_leaves = 0
 
     def _gini(self, labels):
         """
@@ -386,9 +413,11 @@ class SSLTree(ClassifierMixin):
 
         if self.min_samples_leaf >= len(np.unique(left_data_labelled[:, :-1], axis=0)) and self.min_samples_leaf >= len(
                 np.unique(right_data_labelled[:, :-1], axis=0)):
+            self.n_leaves += 1
             return root
 
         if 1.0 in root.probabilities:
+            self.n_leaves += 1
             return root
 
         # Minimum number of samples required to split an internal node.
@@ -398,6 +427,11 @@ class SSLTree(ClassifierMixin):
         else:
             root.left = None
             root.right = None
+
+        if root.left is None and root.right is None:
+            self.n_leaves += 1
+        else:
+            self.depth += 1
 
         return root
 
@@ -420,13 +454,18 @@ class SSLTree(ClassifierMixin):
             Returns the instance itself.
         """
 
+        self.random_state = check_random_state(self.random_state)
+
         self.feature_names = feature_names
         all_labels = np.unique(y)
 
         # Unlabelled samples must have -1 label
         self.labels = np.sort(all_labels[all_labels != -1])
 
-        data = np.concatenate((X, y[:, np.newaxis]), axis=1)
+        if len(y.shape) != 2:
+            y = y.reshape(-1, 1)
+
+        data = np.concatenate((X, y), axis=1)
 
         self.total_gini = self._gini(data[data[:, -1] != -1][:, -1])
         self.total_var = [self._var(data[:, i]) for i in range(data.shape[1] - 1)]
@@ -434,6 +473,70 @@ class SSLTree(ClassifierMixin):
         self.tree = self._create_tree(data, 0)
 
         return self
+
+    def _fit(
+            self,
+            X,
+            y,
+            sample_weight=None,
+            check_input=True,
+            missing_values_in_feature_mask=None,
+    ):
+        return self.fit(X, y)
+
+    def get_depth(self):
+        """Return the depth of the decision tree.
+
+        The depth of a tree is the maximum distance between the root
+        and any leaf.
+
+        Returns
+        -------
+        self.tree_.max_depth : int
+            The maximum depth of the tree.
+        """
+        if self.tree is None:
+            raise NotFittedError(
+                "This SSL tree is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
+        return self.depth
+
+    def get_n_leaves(self):
+        """Return the number of leaves of the decision tree.
+
+        Returns
+        -------
+        self.tree_.n_leaves : int
+            Number of leaves.
+        """
+        if self.tree is None:
+            raise NotFittedError(
+                "This SSL tree is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
+        return self.n_leaves
+
+    def _support_missing_values(self, X):
+        return False
+
+    def _compute_missing_values_in_feature_mask(self, X, estimator_name=None):
+        """This method ensures that X is finite.
+
+        Parameter
+        ---------
+        X : array-like of shape (n_samples, n_features), dtype=DOUBLE
+            Input data.
+
+        estimator_name : str or None, default=None
+            Name to use when raising an error. Defaults to the class name.
+
+        Returns
+        -------
+        None
+        """
+
+        estimator_name = estimator_name or self.__class__.__name__
+        common_kwargs = dict(estimator_name=estimator_name, input_name="X")
+
+        assert_all_finite(X, **common_kwargs)
+        return None
 
     def single_predict_proba(self, x):
         """
@@ -463,7 +566,7 @@ class SSLTree(ClassifierMixin):
 
         return predictions
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, check_input=False):
         """
         Predict class probabilities for multiple input samples.
 
@@ -503,7 +606,7 @@ class SSLTree(ClassifierMixin):
 
         return self.labels[np.argmax(self.single_predict_proba(x))]
 
-    def predict(self, X):
+    def predict(self, X, check_input=False):
         """
         Predict class labels for the input samples.
 
